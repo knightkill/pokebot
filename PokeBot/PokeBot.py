@@ -1,5 +1,3 @@
-from dotenv import load_dotenv
-from langchain_community.chat_models import ChatOpenAI
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
@@ -14,6 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+
 
 def init_database(database: str) -> SQLDatabase:
     db_uri = f'sqlite:///{database}'
@@ -86,9 +85,9 @@ def get_response(user_query: str, db: SQLDatabase, chat_history: list):
     llm = Ollama(model="llama3:latest")
     # llm = GoogleGenerativeAI(model="gemini-1.5-pro-latest", google_api_key=GEMINI_API_KEY, temperature=0)
     result = RunnablePassthrough.assign(query=sql_chain).assign(
-                schema=lambda _: db.get_table_info(),
-                response=lambda vars: db.run(vars["query"]),
-            )
+        schema=lambda _: db.get_table_info(),
+        response=lambda vars: db.run(vars["query"]),
+    )
     chain = (
             result
             | prompt
