@@ -1,0 +1,7 @@
+python-dotenv
+streamlit
+langchain-core
+langchain-community
+langchain-google-genai
+langchain-groq
+openai
