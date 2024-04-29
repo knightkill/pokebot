@@ -4,6 +4,7 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_community.utilities import SQLDatabase
 from langchain_core.output_parsers import StrOutputParser
 from langchain_community.llms import Ollama
+from langchain_openai import ChatOpenAI
 import streamlit as st
 
 import os
@@ -38,14 +39,37 @@ def get_sql_chain(db):
     Question: {question}
     SQL Query:
     """
+    template = """
+        You are assisting a user querying a Pokemon training database. The user may ask about various attributes of Pokemons stored in the database. Provide SQL queries that answer the user's question based on the provided schema.
+
+        Database Schema: {schema}
+
+        Previous User Queries: {chat_history}
+
+        User Question: "{question}"
+        Write an SQL query to retrieve the relevant data:
+        """
+
+    template = """
+        -- Generate an SQL query based on the user question and schema information.
+        Schema: {schema}
+        User Question: "{question}"
+        SQL Query:
+        """
+
+    template = """
+        Schema: {schema}
+        Question: "{question}"
+        -- Write the SQL query below this line
+        """
 
     prompt = ChatPromptTemplate.from_template(template)
 
-    # llm = ChatOpenAI(model="gpt-4-0125-preview")
+    llm = ChatOpenAI(model="gpt-4-0125-preview")
     # llm = ChatGroq(model="mixtral-8x7b-32768", temperature=0)
     # llm = GoogleGenerativeAI(model="gemini-1.5-pro-latest", google_api_key=GEMINI_API_KEY, temperature=0)
-    # llm = ChatOpenAI(model="gpt-4-0125-preview", temperature=0.000000001)
-    llm = Ollama(model="llama3:latest")
+
+    # llm = Ollama(model="phi3:latest")
 
     def get_schema(_):
         return db.get_table_info()
@@ -79,15 +103,17 @@ def get_response(user_query: str, db: SQLDatabase, chat_history: list):
     
     ---
     """
-
+    # print("User Query: ", sql_chain)
     prompt = ChatPromptTemplate.from_template(template)
-    # llm = ChatOpenAI(model="gpt-4-0125-preview", temperature=0.000000001)
-    llm = Ollama(model="llama3:latest")
+    llm = ChatOpenAI(model="gpt-4-0125-preview", temperature=0.000000001)
+    # llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.000000001)
+    # llm = Ollama(model="phi3:latest")
     # llm = GoogleGenerativeAI(model="gemini-1.5-pro-latest", google_api_key=GEMINI_API_KEY, temperature=0)
     result = RunnablePassthrough.assign(query=sql_chain).assign(
         schema=lambda _: db.get_table_info(),
         response=lambda vars: db.run(vars["query"]),
     )
+    print(result)
     chain = (
             result
             | prompt
@@ -105,6 +131,9 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
         AIMessage(content="Hello! I'm a Pokemon Analyst. Ask me anything about your pokemons."),
     ]
+
+db = init_database("pokedex.sqlite")
+st.session_state.db = db
 
 # Database Config
 with st.sidebar:
@@ -139,7 +168,6 @@ if user_query is not None and user_query.strip() != "":
         st.markdown(user_query)
 
     with st.chat_message("AI"):
-        print("User Query: ", user_query)
         response = get_response(user_query, st.session_state.db, st.session_state.chat_history)
         st.markdown(response)
 
